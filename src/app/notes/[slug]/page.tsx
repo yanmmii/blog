@@ -16,7 +16,7 @@ export async function generateStaticParams() {
 }
 
 // This function gets the content for a specific note
-async function getNoteData(slug: string) {
+async function getNoteData(slug: string): Promise<{ slug: string; contentHtml: string; [key: string]: any }> {
   const fullPath = path.join(notesDirectory, `${slug}.md`);
   const fileContents = fs.readFileSync(fullPath, 'utf8');
 
