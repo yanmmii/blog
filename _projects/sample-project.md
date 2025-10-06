@@ -2,7 +2,7 @@
 title: 'Personal Blog'
 date: '2025-10-06'
 tech: 'Next.js, Tailwind CSS, TypeScript'
-repoUrl: 'https://github.com/user/my-blog'
+repoUrl: 'https://github.com/yanmmii/blog'
 liveUrl: ''
 excerpt: 'The very blog you are looking at. Built from scratch to document my learnings and showcase projects.'
 ---

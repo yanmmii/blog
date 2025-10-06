@@ -1,5 +1,5 @@
 ---
-title: '從零開始打造現代化個人部落格：我的實戰全紀錄'
+title: '從零開始建立極簡個人部落格'
 date: '2025-10-06'
 excerpt: '本文詳細記錄了如何使用 Next.js, TypeScript, Tailwind CSS 從頭建立一個功能完整的個人部落格，並將其部署到 AWS EC2 雲端主機的全過程。'
 ---
@@ -22,7 +22,7 @@ excerpt: '本文詳細記錄了如何使用 Next.js, TypeScript, Tailwind CSS �
 
 對於個人部落格，最優雅的內容管理方式莫過於 "Git-based CMS"，也就是直接使用 Markdown 檔案來撰寫文章。
 
-- 我們建立了 `_notes` 和 `_projects` 資料夾來存放內容。
+- 我們建立了 `_articles` 和 `_projects` 資料夾來存放內容。
 - 使用 `gray-matter` 套件來解析每個 Markdown 檔案頭部的 `frontmatter` (元資料，如標題和日期)。
 - 使用 `remark` 和 `remark-html` 將 Markdown 內文轉換為 HTML，以便在頁面上顯示。
 
