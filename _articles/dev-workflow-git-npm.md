@@ -1,49 +1,102 @@
 ---
 title: '我的開發工作流：Git 與 npm 核心觀念'
 date: '2025-10-06'
-excerpt: 'Git 和 npm 是現代 Web 開發的兩大基石。本文將介紹它們在我的部落格專案中扮演的角色，以及一些最核心的觀念與指令。'
+excerpt: '用最少概念掌握 Git 與 npm：從 commit 與分支到 scripts 與鎖版，涵蓋常見錯誤與實用清單。'
 ---
+
+## TL;DR
+
+- Git 管版本、npm 管依賴；兩者是日常開發與部署的基礎。
+- `.gitignore` 務必忽略 `node_modules`；使用 `package-lock.json` 鎖定套件版本。
+- 最常用流：`git switch -c` 分支 → `add/commit` → `push/PR`。
 
 ## Git：不僅是備份，更是時光機
 
-Git 是一個「分散式版本控制系統」。簡單來說，它為你的專案拍攝一張張的「快照」(commit)，讓你隨時可以回到過去的任何一個時間點。
+Git 以「快照（commit）」記錄專案狀態，可安全嘗試、快速回滾，並友善協作。
 
-### 為什麼它至關重要？
+### 推薦工作流（個人/小組適用）
 
-- **安全感**: 不怕改壞程式碼，隨時可以還原。
-- **團隊協作**: 能夠清晰地看到誰、在什麼時候、修改了什麼內容，並能輕鬆地合併多人的工作成果。
-- **部署流程**: 正如我們的部署流程所示，`git push` 和 `git pull` 是連接本地開發環境和遠端伺服器的橋樑。
+```bash
+# 初始化（若尚未是 Git 倉庫）
+git init
 
-### 核心指令回顧
+# 建立功能分支
+git switch -c feat/setup-lint
 
-- `git init`: 初始化一個新的倉庫。
-- `git add .`: 將所有變更加入「暫存區」，準備拍攝快照。
-- `git commit -m "訊息"`: 拍攝快照，並附上一段描述訊息。
-- `git push`: 將本地的快照推送到遠端倉庫 (如 GitHub)。
-- `git pull`: 從遠端倉庫拉取最新的快照。
-- `git clone`: 從遠端倉庫完整複製一份專案到本地。
+# 開發與暫存變更
+git add .
+git commit -m "Feat: add ESLint and basic rules"
 
-### `.gitignore` 的重要性
+# 推送並建立 PR
+git push -u origin feat/setup-lint
+```
 
-我們遇到的 `git push` 失敗問題，完美地詮釋了 `.gitignore` 的重要性。這個檔案告訴 Git：「請忽略這些檔案，不要追蹤它們」。`node_modules` 這類可以被自動產生的資料夾，絕對不應該被加入版本控制。
+重點：
+- 每次提交（commit）只做一件事，訊息使用祈使句與型別（Feat/Fix/Docs）。
+- 以分支隔離開發，PR 審查後合併到主分支。
 
----
+### `.gitignore` 要點
 
-## npm：專案的依賴大管家
+```gitignore
+node_modules/
+.next/
+.DS_Store
+```
 
-`npm` (Node Package Manager) 是 Node.js 的套件管理器。現代專案會依賴許多其他人寫好的程式碼（套件），npm 就是幫我們管理這些套件的工具。
+- `node_modules` 由 `npm install` 產生，請勿追蹤。
+- 建置輸出（如 `.next`）與 OS 檔案亦應忽略。
 
-### `package.json`：專案的身份證
+### 常見錯誤
 
-這個檔案是專案的核心，它記錄了：
+- 誤把 `node_modules` 推上去 → 先加入 `.gitignore`，再移除追蹤：
+  ```bash
+  git rm -r --cached node_modules
+  git commit -m "Fix: remove node_modules from repo"
+  ```
 
-- `dependencies`: 專案在「生產環境」下需要運行的套件 (例如 `next`, `react`)。
-- `devDependencies`: 只在「開發過程」中需要的套件 (例如 `typescript`, `tailwindcss`)。
-- `scripts`: 可以執行的腳本指令，例如 `npm run build`。
+## npm：依賴與腳本的管家
 
-### `node_modules` vs `package-lock.json`
+`npm` 管理專案所需套件與指令腳本。
 
-- **`node_modules`**: `npm install` 指令會根據 `package.json` 的指示，將所有需要的套件下載到這個資料夾。它體積龐大，**不應該**被 Git 追蹤。
-- **`package-lock.json`**: 這個檔案鎖定了每個套件的精確版本。這確保了您和您的同事，以及您的伺服器，在執行 `npm install` 時，安裝的套件版本是完全一致的，避免了「在我電腦上可以跑，在你那裡卻不行」的窘境。
+### `package.json` 核心欄位
 
-理解 Git 和 npm 的運作方式，是踏入現代化開發流程的第一步，也是最重要的一步。
+- `dependencies`: 執行期需要，例如 `next`, `react`。
+- `devDependencies`: 只在開發/建置使用，例如 `typescript`, `tailwindcss`。
+- `scripts`: 常用任務入口，例如 `dev`, `build`, `start`, `lint`。
+
+```json
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  }
+}
+```
+
+### `node_modules` 與 `package-lock.json`
+
+- `node_modules`: 實際安裝的套件檔案，體積大、不入版控。
+- `package-lock.json`: 鎖定每個套件精準版本，確保所有環境一致性（務必納入版控）。
+
+### 常用指令速覽
+
+```bash
+npm install           # 依 package.json 安裝依賴
+npm run dev          # 本機啟動開發伺服器
+npm run build        # 產生生產版
+npm run start        # 啟動生產版伺服器
+npm run lint         # 執行 ESLint
+```
+
+## 工作日常手冊（Cheat Sheet）
+
+- 新任務：`git switch -c feat/...`
+- 開發 → `git add -p` 精準加入改動 → `git commit`
+- 推送：`git push -u origin 分支` → 建立 PR → 合併
+- 同步：`git pull --rebase`（保持簡潔歷史）
+
+## 小結
+
+理解 Git 的版本節點與 npm 的鎖版規則，可顯著降低「壞環境」與「壞提交」造成的風險。把握上述最小流程，日常開發就穩了。

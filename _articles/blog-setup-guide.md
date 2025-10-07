@@ -1,53 +1,119 @@
 ---
 title: '從零開始建立極簡個人部落格'
 date: '2025-10-06'
-excerpt: '本文詳細記錄了如何使用 Next.js, TypeScript, Tailwind CSS 從頭建立一個功能完整的個人部落格，並將其部署到 AWS EC2 雲端主機的全過程。'
+excerpt: 'Next.js + TypeScript + Tailwind 建站到 EC2 部署的實戰教程：初始化、內容系統、建置與常駐。'
 ---
 
-## 前言
+## TL;DR
 
-一直想擁有一個完全屬於自己、能夠自由揮灑的空間來記錄學習與專案。在研究了多種方案後，我最終選擇了目前最前沿的技術棧來打造這個部落格。這不僅是一個網站，更是我對現代 Web 開發技術的一次深度實踐。
+- 初始化：Next.js（App Router）+ TS + Tailwind
+- 內容：以 Markdown（`_articles`, `_projects`）作為 Git-based CMS
+- 建置啟動：`npm run build` → `npm run start`
+- 部署：EC2 拉取程式碼、安裝依賴、用 PM2 常駐
 
-## Phase 1: 技術選型與專案初始化
+## 前置準備
 
-我們的目標是建立一個快速、現代化且易於維護的網站。因此，我選擇了以下技術組合：
+- Node.js 18+、npm
+- GitHub 倉庫與本機開發環境
+- 基礎 Linux/SSH 操作能力（部署階段）
 
-- **框架**: [Next.js](https://nextjs.org/) (使用 App Router)
-- **語言**: [TypeScript](https://www.typescriptlang.org/)
-- **樣式**: [Tailwind CSS](https://tailwindcss.com/)
+## 建立專案骨架
 
-這個組合是目前的業界標竿。我們透過 `npx create-next-app@latest` 指令開始，雖然中途因為環境問題手動建立了 `package.json` 和設定檔，但這也讓我們更深入地理解了 Next.js 專案的底層結構。
+可用 `create-next-app` 或手動建立；以下以標準初始化為例：
 
-## Phase 2: 內容管理架構
+```bash
+npx create-next-app@latest my-blog --ts --eslint --tailwind --app
+cd my-blog
+npm run dev
+```
 
-對於個人部落格，最優雅的內容管理方式莫過於 "Git-based CMS"，也就是直接使用 Markdown 檔案來撰寫文章。
+專案結構重點：
+- `src/app`：App Router 頁面
+- `src/components`：共享 UI
+- `src/app/globals.css`：全域樣式（含 Tailwind）
 
-- 我們建立了 `_articles` 和 `_projects` 資料夾來存放內容。
-- 使用 `gray-matter` 套件來解析每個 Markdown 檔案頭部的 `frontmatter` (元資料，如標題和日期)。
-- 使用 `remark` 和 `remark-html` 將 Markdown 內文轉換為 HTML，以便在頁面上顯示。
+## 加入內容系統（Markdown）
 
-這個作法的最大好處是：**高效、免費、安全，且所有內容都受到 Git 的版本控制。**
+- 新增資料夾：`_articles`, `_projects`
+- 每篇以 Markdown 撰寫，於檔頭使用 YAML front matter
 
-## Phase 3: 前端頁面實作
+```md
+---
+title: '文章標題'
+date: '2025-10-06'
+excerpt: '一句話說明內文。'
+---
 
-我們使用 React 元件來建構網站的各個部分：
+內文使用 Markdown，支援程式碼區塊與標題。
+```
 
-1.  **主頁面 (`/`)**: 一個靜態的歡迎頁面。
-2.  **筆記頁面 (`/notes`)**: 透過 Node.js 的 `fs` 模組讀取 `_notes` 資料夾中的所有檔案，動態生成文章列表。
-3.  **專案頁面 (`/projects`)**: 與筆記頁面同理，讀取 `_projects` 資料夾來展示作品集。
-4.  **文章內頁 (`/notes/[slug]`)**: 一個動態路由頁面。它根據 URL 中的 `slug` 找到對應的 Markdown 檔案，並將其內容渲染出來。我們還使用了 `@tailwindcss/typography` 的 `prose` 樣式，輕鬆地讓文章排版變得美觀。
+在伺服器端（或 build 時）讀取檔案，搭配 `gray-matter` 解析 front matter、`remark` 轉 HTML。頁面端用 `@tailwindcss/typography` 的 `prose` 提升排版。
 
-## Phase 4: 部署到 AWS EC2
+### 讀取文章的概念範例
 
-這是從開發到上線的最後一哩路。
+```ts
+// 假設在 lib/articles.ts（簡化示意）
+import fs from 'node:fs'
+import path from 'node:path'
+import matter from 'gray-matter'
 
-1.  **版本控制**: 我們將所有程式碼（除了 `node_modules`）推送到 GitHub 倉庫。
-2.  **伺服器設定**: 在 EC2 (Ubuntu) 上安裝了 `nvm` 和 `Node.js`。
-3.  **建置與執行**: 我們在 EC2 上 `git pull` 最新的程式碼，執行 `npm install` 安裝依賴，然後用 `npm run build` 建立生產版本。
-4.  **持續運行**: 最後，使用 `pm2` 來啟動我們的 Next.js 應用，確保它能在背景持續運行，並在伺服器重啟後自動恢復。
+const articlesDir = path.join(process.cwd(), '_articles')
 
-## 結論
+export function listArticles() {
+  return fs.readdirSync(articlesDir)
+    .filter((f) => f.endsWith('.md'))
+    .map((file) => {
+      const raw = fs.readFileSync(path.join(articlesDir, file), 'utf8')
+      const { data } = matter(raw)
+      return { slug: file.replace(/\.md$/, ''), ...data }
+    })
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+}
+```
 
-從一個想法到一個真正上線的網站，這個過程涵蓋了現代 Web 開發的全流程。雖然途中遇到了一些挑戰（例如 Git 的大檔案問題和本地與伺服器環境的差異），但解決這些問題的過程正是學習的精髓所在。
+## 執行與建置
 
-希望這份紀錄對同樣想建立自己網站的你有所幫助！
+```bash
+npm run dev    # 開發
+npm run lint   # Lint 檢查
+npm run build  # 產生生產版
+npm run start  # 啟動生產伺服器（預設 3000）
+```
+
+## 部署到 AWS EC2
+
+1. 連線與環境
+   ```bash
+   ssh ubuntu@YOUR_EC2_IP
+   # 安裝 nvm + Node.js LTS（略）
+   ```
+2. 拉下程式碼與安裝依賴
+   ```bash
+   git clone https://github.com/you/my-blog.git
+   cd my-blog
+   npm install
+   npm run build
+   ```
+3. 以 PM2 常駐（見〈PM2 簡介〉一文）
+   ```bash
+   npx pm2 start npm --name "my-blog" -- run start
+   npx pm2 save
+   ```
+
+### 進階：開機自動啟動
+
+```bash
+npx pm2 startup
+npx pm2 save
+```
+
+## 上線前檢查清單
+
+- `npm run lint` 無錯誤
+- 主要路由可開啟（`/`, `/articles/[slug]`, `/projects`）
+- `.gitignore` 已忽略 `node_modules`, `.next`
+- 安全性：未外洩憑證、未暴露敏感環境變數
+
+## 小結
+
+本文將從建置到部署的最小路徑串起來：建立專案骨架 → Markdown 內容系統 → 建置與部署 → PM2 常駐。照此流程可快速把個人部落格上線並逐步擴充。

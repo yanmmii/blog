@@ -1,44 +1,89 @@
 ---
 title: 'PM2 簡介'
 date: '2025-10-06'
-excerpt: '當我們關閉 SSH 連線後，是什麼讓我們的網站能 24 小時不間斷地運行？答案就是流程管理器 PM2。本文將介紹為什麼我們需要它，以及它的基本使用方法。'
+excerpt: '用 PM2 讓 Next.js 站台在伺服器上穩定常駐、重啟與開機自啟，並掌握日誌與監控。'
 ---
+
+## TL;DR
+
+- `npm run start` 依賴當前 SSH 連線；關閉會話即終止。
+- PM2 讓應用在背景常駐、自動重啟、集中日誌與資源監控。
+- 最小使用集：`pm2 start npm --name "my-blog" -- run start` → `pm2 save` → `pm2 logs`。
 
 ## 為什麼不能只用 `npm run start`？
 
-當我們透過 SSH 連線到 EC2 伺服器並執行 `npm run start` 時，這個指令是在我們當前的「連線會話 (session)」中運行的。這意味著，一旦我們關閉終端機，SSH 連線中斷，這個會話就會結束，所有在該會話中啟動的程式（包括我們的 Next.js 網站）也都會被系統終止。
+`npm run start` 執行於當前 session；一旦 SSH 中斷或終端關閉，進程會被回收。需要以系統層守護程式管理背景服務，因此選擇 PM2。
 
-顯然，我們需要一個工具來讓我們的網站作為一個「背景服務」獨立運行，不受我們連線狀態的影響。這就是 PM2 的用武之地。
+## PM2 功能速覽
 
-## PM2：Node.js 的流程管理器
+- 背景常駐與崩潰自啟
+- 集中日誌（stdout/stderr）
+- 監控 CPU/記憶體
+- 重啟策略與零停機 reload（適合多進程/叢集）
+- 開機自動啟動設定
 
-PM2 (Process Manager 2) 是一個為 Node.js 應用而生的、帶有負載平衡功能的生產環境流程管理器。它的核心功能包括：
+## 安裝
 
-- **背景運行**: 讓應用程式在背景作為一個獨立的服務持續運行。
-- **自動重啟**: 如果應用程式因為任何錯誤而崩潰，PM2 會立刻自動將其重啟。
-- **日誌管理**: PM2 會集中管理應用的所有輸出日誌（包括 `console.log` 和錯誤訊息），方便排查問題。
-- **效能監控**: 提供對應用程式 CPU 和記憶體佔用的監控。
-- **開機自啟**: 可以設定讓 PM2 在伺服器重啟後，自動啟動所有它管理的應用。
+```bash
+npm install -g pm2
+# 或專案內：npx pm2 <command>
+```
 
-### 核心指令回顧
+## 在 EC2 啟動 Next.js 生產站台
 
-在我們的部署流程中，我們用到了幾個核心指令：
+```bash
+# 於專案根目錄，先建置
+npm run build
 
-- **啟動**: `pm2 start npm --name "my-blog" -- run start`
-  - `pm2 start`: 啟動一個應用。
-  - `npm`: 我們要啟動的目標是 `npm` 這個程式。
-  - `--name "my-blog"`: 為這個服務取一個好記的名字。
-  - `-- run start`: 告訴 `npm` 要執行的腳本是 `start`。
+# 以 npm script 方式由 PM2 管理（推薦）
+pm2 start npm --name "my-blog" -- run start
 
-- **重啟**: `pm2 restart my-blog`
-  - 當我們更新程式碼並 `build` 之後，用這個指令來平滑地重啟應用，讓變更生效。
+# 儲存目前進程清單（重開機後可還原）
+pm2 save
+```
 
-- **查看列表**: `pm2 list`
-  - 列出所有 PM2 正在管理的應用及其狀態（是否 online、CPU/記憶體佔用等）。
+### 更新版本（部署後）
 
-- **查看日誌**: `pm2 logs my-blog`
-  - 即時查看 `my-blog` 應用的日誌輸出，這在除錯時非常有用。
+```bash
+git pull
+npm install
+npm run build
+pm2 restart my-blog
+```
 
-## 總結
+### 檢視與除錯
 
-如果說 `npm run build` 是將我們的程式碼打包成可以出貨的產品，那麼 `pm2` 就是 7x24 小時營業的店長，確保我們的產品能隨時被顧客（網站訪客）訪問到。掌握 PM2 是將 Node.js 應用部署到生產環境的必備技能。
+```bash
+pm2 list          # 查看所有進程
+pm2 logs my-blog  # 追蹤指定服務日誌
+pm2 monit         # 即時監控儀表板
+```
+
+### 開機自動啟動
+
+```bash
+pm2 startup
+pm2 save
+```
+
+### 叢集與零停機（進階）
+
+若以 Node 伺服器模式運行（非 Next.js 靜態），可使用叢集模式：
+
+```bash
+pm2 start server.js -i max --name my-api
+# 或 ecosystem.config.js 定義多服務，便於統一管理
+```
+
+## 常見問題
+
+- 重啟後設定消失？
+  - 忘記 `pm2 save`。請在設定妥當後執行一次。
+- 連線卻看不到站台？
+  - 檢查 `npm run start` 監聽的主機與埠、EC2 安全群組與防火牆規則。
+- 日誌過大？
+  - 設定日誌輪替（`pm2 install pm2-logrotate`）。
+
+## 小結
+
+PM2 是把 Next.js 應用帶到生產環境的關鍵工具：它讓服務穩定、可觀測並易於維運。把握「啟動 → 儲存 → 日誌 → 自啟」這條最小路徑即可上手。
