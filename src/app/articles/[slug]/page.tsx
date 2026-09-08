@@ -3,6 +3,8 @@ import path from 'path';
 import matter from 'gray-matter';
 import { remark } from 'remark';
 import html from 'remark-html';
+import Link from 'next/link';
+import type { Metadata } from 'next';
 
 const articlesDirectory = path.join(process.cwd(), '_articles');
 
@@ -12,6 +14,11 @@ export async function generateStaticParams() {
   return filenames.map((filename) => ({
     slug: filename.replace(/\.md$/, ''),
   }));
+}
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+    const articleData = await getArticleData(params.slug);
+    return { title: articleData.title, description: articleData.excerpt };
 }
 
 // This function gets the content for a specific article
@@ -40,19 +47,15 @@ export default async function ArticlePage({ params }: { params: { slug: string }
     const articleData = await getArticleData(params.slug);
 
     return (
-        <main className="flex min-h-screen flex-col items-center p-8 md:p-24">
-            <div className="w-full max-w-2xl">
-                <article>
-                    <header className="mb-8">
-                        <h1 className="text-4xl font-bold tracking-tight text-neutral-100 mb-3">{articleData.title}</h1>
-                        <p className="text-neutral-500 text-sm">{articleData.date}</p>
-                    </header>
-                    <div 
-                        className="prose prose-invert prose-lg max-w-none"
-                        dangerouslySetInnerHTML={{ __html: articleData.contentHtml }} 
-                    />
-                </article>
-            </div>
+        <main>
+            <article className="article-page">
+                <header>
+                    <Link href="/articles" className="back-link"><span aria-hidden="true">←</span> All articles</Link>
+                    <h1>{articleData.title}</h1>
+                    <time dateTime={articleData.date}>{articleData.date}</time>
+                </header>
+                <div className="prose prose-invert" dangerouslySetInnerHTML={{ __html: articleData.contentHtml }} />
+            </article>
         </main>
     );
 }
