@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
-
-const inter = Inter({ subsets: ["latin"] });
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "My Blog",
-  description: "A blog created with Next.js",
+  title: { default: "by4nwu's blog", template: "%s · by4nwu's blog" },
+  description: "Notes on programming, tools, and the work behind them.",
 };
 
 export default function RootLayout({
@@ -16,10 +14,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <Header />
-        {children}
+    <html lang="zh-Hant">
+      <body>
+        <div className="site-shell">
+          <Header />
+          {children}
+          <Footer />
+        </div>
       </body>
     </html>
   );
